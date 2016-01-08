@@ -26,6 +26,10 @@ body {
   shape-rendering: crispEdges;
 }
 
+.c3-tooltip td {
+  max-width:300px;
+}
+
 .c3-tooltip th {
   background-color: #eee;
   color: #000;
