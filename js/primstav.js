@@ -1,96 +1,53 @@
-var projects = ['Q+', 'AppInsight'];
-var colors = {
-  holidays: '#f99',
-  'Q+': '#00b',
-  'AppInsight': '#0b0',
-  'today': '#ccc'
-};
+//
+// Primstav Task Calendar
+// Copyright (c) 2016 Roozbeh Farahbod
+//
 
-var minDate = "2016-01-01",
-    maxDate = "2016-12-31";
+// --- Primstav Configuration
+var config_def = {
+  holidayValue: 0,
+  minDate: "2016-01-01",
+  maxDate: "2016-12-31",
+  data: {
+    colors: {
+      holidays: '#f99',
+      'Q+': '#00b',
+      'Q+ WM': '#55a',
+      'AppInsight': '#0b0',
+    },
+    dateFormat: "%Y-%m-%d",
+  },
+  timeline: {
+    dateFormat: "%d.%m",
+    tickCount: 24
+  },
+  tooltip: {
+    dateFormat: "%d %b %Y"
+  }
+}
 
-var CLASS = {
-    target: 'c3-target',
-    chart: 'c3-chart',
-    chartLine: 'c3-chart-line',
-    chartLines: 'c3-chart-lines',
-    chartBar: 'c3-chart-bar',
-    chartBars: 'c3-chart-bars',
-    chartText: 'c3-chart-text',
-    chartTexts: 'c3-chart-texts',
-    chartArc: 'c3-chart-arc',
-    chartArcs: 'c3-chart-arcs',
-    chartArcsTitle: 'c3-chart-arcs-title',
-    chartArcsBackground: 'c3-chart-arcs-background',
-    chartArcsGaugeUnit: 'c3-chart-arcs-gauge-unit',
-    chartArcsGaugeMax: 'c3-chart-arcs-gauge-max',
-    chartArcsGaugeMin: 'c3-chart-arcs-gauge-min',
-    selectedCircle: 'c3-selected-circle',
-    selectedCircles: 'c3-selected-circles',
-    eventRect: 'c3-event-rect',
-    eventRects: 'c3-event-rects',
-    eventRectsSingle: 'c3-event-rects-single',
-    eventRectsMultiple: 'c3-event-rects-multiple',
-    zoomRect: 'c3-zoom-rect',
-    brush: 'c3-brush',
-    focused: 'c3-focused',
-    defocused: 'c3-defocused',
-    region: 'c3-region',
-    regions: 'c3-regions',
-    tooltipContainer: 'c3-tooltip-container',
-    tooltip: 'c3-tooltip',
-    tooltipName: 'c3-tooltip-name',
-    shape: 'c3-shape',
-    shapes: 'c3-shapes',
-    line: 'c3-line',
-    lines: 'c3-lines',
-    bar: 'c3-bar',
-    bars: 'c3-bars',
-    circle: 'c3-circle',
-    circles: 'c3-circles',
-    arc: 'c3-arc',
-    arcs: 'c3-arcs',
-    area: 'c3-area',
-    areas: 'c3-areas',
-    empty: 'c3-empty',
-    text: 'c3-text',
-    texts: 'c3-texts',
-    gaugeValue: 'c3-gauge-value',
-    grid: 'c3-grid',
-    gridLines: 'c3-grid-lines',
-    xgrid: 'c3-xgrid',
-    xgrids: 'c3-xgrids',
-    xgridLine: 'c3-xgrid-line',
-    xgridLines: 'c3-xgrid-lines',
-    xgridFocus: 'c3-xgrid-focus',
-    ygrid: 'c3-ygrid',
-    ygrids: 'c3-ygrids',
-    ygridLine: 'c3-ygrid-line',
-    ygridLines: 'c3-ygrid-lines',
-    axis: 'c3-axis',
-    axisX: 'c3-axis-x',
-    axisXLabel: 'c3-axis-x-label',
-    axisY: 'c3-axis-y',
-    axisYLabel: 'c3-axis-y-label',
-    axisY2: 'c3-axis-y2',
-    axisY2Label: 'c3-axis-y2-label',
-    legendBackground: 'c3-legend-background',
-    legendItem: 'c3-legend-item',
-    legendItemEvent: 'c3-legend-item-event',
-    legendItemTile: 'c3-legend-item-tile',
-    legendItemHidden: 'c3-legend-item-hidden',
-    legendItemFocused: 'c3-legend-item-focused',
-    dragarea: 'c3-dragarea',
-    EXPANDED: '_expanded_',
-    SELECTED: '_selected_',
-    INCLUDED: '_included_'
-};
+// --- Load custome configuration
+var config = (JSON.parse(JSON.stringify(config_def)));
+if (typeof primstavconfig !== 'undefined') {
+  config = $.extend(true, {}, config, primstavconfig);
+}
 
 // --- Variables and Constants
-var dateFormat = d3.time.format("%Y-%m-%d");
-var tooltipDateFormat = d3.time.format("%d %b %Y");
-var tickDateFormat = d3.time.format("%d.%m");
 const MILLIS_IN_A_DAY = 24 * 3600 * 1000;
+
+var dateFormat = d3.time.format(config.data.dateFormat);
+var tooltipDateFormat = d3.time.format(config.tooltip.dateFormat);
+var tickDateFormat = d3.time.format(config.timeline.dateFormat);
+
+// --- get project names
+var projectSet = {};
+for (var i in tasks) {
+  projectSet[tasks[i].project] = true;
+}
+var projects = [];
+for (var p in projectSet) {
+  projects.push(p);
+}
 
 // --- combine weekends and holidays
 var offdays = {};
@@ -100,8 +57,21 @@ for (var i in publicHolidays) {
   offdays[publicHolidays[i]] = true;
 }
 
-// add weekends
-var offday = new Date(2016, 0, 2);
+// --- Add Weekends
+var offday = new Date(config.minDate);
+var isWeekend = false;
+do {
+  dow = offday.getDay();
+  if (dow == 6) {
+    break;
+  }
+  if (dow == 0) {
+    offday.setDate(offday.getDate() - 1);
+    break;
+  }
+  offday.setDate(offday.getDate() + 1);
+} while (true);
+
 do {
   offdays[dateFormat(offday)] = true;
   offday.setDate(offday.getDate() + 1);
@@ -117,7 +87,7 @@ for (var prop in offdays) {
 var holidays = ["holidays"];
 for (var i in holidays_x) {
   if (i > 0) {
-    holidays[i] = 0.5;
+    holidays[i] = config.holidayValue;
   }
 }
 
@@ -162,22 +132,12 @@ for (var i in tasks) {
 colData[colData.length] = holidays_x;
 colData[colData.length] = holidays;
 
-// --- add today
-var today = ["today", 10],
-    today_x = ["today_x", new Date()];
-xMap["today"] = "today_x";
-colData[colData.length] = today_x;
-colData[colData.length] = today;
-
 var zoomKnob = 365;
-var tickCounts = 24;
-
-console.log(xMap);
 
 // create ticks for all dates
 var tickValues = [];
-var adate = new Date(minDate);
-var endDate = new Date(maxDate);
+var adate = new Date(config.minDate);
+var endDate = new Date(config.maxDate);
 do {
   tickValues.push(new Date(adate));
   adate.setDate(adate.getDate() + 1);
@@ -191,14 +151,13 @@ var chart = c3.generate({
           left: 40,
       },
   data: {
-    xFormat: "%Y-%m-%d",
+    xFormat: config.data.dateFormat,
     xs: xMap,
      columns: colData,
      type: 'scatter',
-     colors: colors,
+     colors: config.data.colors,
      types: {
-       holidays: 'bar',
-       today: 'bar'
+       holidays: 'area',
      }
  },
  axis: {
@@ -209,7 +168,7 @@ var chart = c3.generate({
        values: tickValues,
                format: function(x) {
                  var date = Math.floor(x.getTime() / MILLIS_IN_A_DAY);
-                 var ratio = Math.round(zoomKnob / tickCounts);
+                 var ratio = Math.round(zoomKnob / config.timeline.tickCount);
                  if (date % ratio == 0) {
                    return tickDateFormat(x);
                  } else {
@@ -220,8 +179,8 @@ var chart = c3.generate({
                rotate: 45,
                culling: true
            },
-    min: minDate,
-    max: maxDate,
+    min: config.minDate,
+    max: config.maxDate,
    },
    y: {
      show: false,
@@ -245,7 +204,7 @@ var chart = c3.generate({
  },
  bar: {
    width: {
-     ratio: 2
+     ratio: 1
    }
  },
  zoom: {
@@ -276,7 +235,7 @@ var chart = c3.generate({
    position: function (data, width, height, element) {
      var dp = data[0];
      var pos = this.tooltipPosition(data, width, height, element);
-     if (dp.id == 'holidays' || dp.id == 'today') {
+     if (dp.id == 'holidays') {
        pos.top = pos.top + 15;
        pos.left = pos.left - 15;
      }
@@ -285,11 +244,8 @@ var chart = c3.generate({
    contents: function (d, defaultTitleFormat, defaultValueFormat, color) {
      var dp = d[0];
      if (dp.id == 'holidays') {
-       return "<div id='tooltip' class='" + CLASS.tooltipName + "'>" + tickDateFormat(dp.x) + "</div>";
+       return "<div id='tooltip' class='c3-tooltip-name'>" + tickDateFormat(dp.x) + "</div>";
      } else {
-       if (dp.id == 'today') {
-         return "<div id='tooltip' class='" + CLASS.tooltipName + "'><b>Today: " + tickDateFormat(dp.x) + "</b></div>";
-       } else {
          task = dataSeries[dp.id][dp.index];
 
            var $$ = this, config = $$.config,
@@ -302,22 +258,21 @@ var chart = c3.generate({
 
                if (! text) {
                    title = task.name;
-                   text = "<table id='tooltip' class='" + CLASS.tooltip + "'>" + (title || title === 0 ? "<tr><th colspan='2'>" + title + "</th></tr>" : "");
+                   text = "<table id='tooltip' class='c3-tooltip'>" + (title || title === 0 ? "<tr><th colspan='2'>" + title + "</th></tr>" : "");
                }
 
                name = nameFormat(d[i].name, d[i].ratio, d[i].id, d[i].index);
                bgcolor = $$.levelColor ? $$.levelColor(d[i].value) : color(d[i].id);
 
                if (task.dscr != undefined) {
-                 text += "<tr class='" + CLASS.tooltipName + "'><td class='name'>" + task.dscr + "</td></tr>";
+                 text += "<tr class='c3-tooltip-name'><td class='name'>" + task.dscr + "</td></tr>";
                }
-               text += "<tr class='" + CLASS.tooltipName + "-" + d[i].id + "'>";
+               text += "<tr class='c3-tooltip-name-" + d[i].id + "'>";
                text += "<td class='name'><span style='background-color:" + bgcolor + "'></span>" + name + "</td>";
                text += "<td class='value'>" + tooltipDateFormat(d[i].x) + "</td>";
                text += "</tr>";
            }
            return text + "</table>";
-       }
      }
 
    }
@@ -325,4 +280,9 @@ var chart = c3.generate({
 
  });
 
-holidaysHidden = true;
+today = new Date();
+ chart.xgrids.add(
+   {value: new Date(), text: ('Today ' + tickDateFormat(today))}
+ );
+
+holidaysHidden = false;
