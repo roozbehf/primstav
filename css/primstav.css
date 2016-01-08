@@ -40,3 +40,18 @@ body {
   background-color: #eee;
   color: #000;
 }
+
+/*
+.c3-xgrid-line.month line {
+    stroke: #999;
+}
+.c3-xgrid-line.month text {
+    fill: pink;
+}
+*/
+.c3-xgrid-line.today line {
+    stroke: red;
+}
+.c3-xgrid-line.today text {
+    fill: red;
+}

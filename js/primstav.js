@@ -6,7 +6,7 @@
 // --- Primstav Configuration
 var config_def = {
   holidayValue: 0,
-  minDate: "2016-01-01",
+  minDate: "2015-12-28",
   maxDate: "2016-12-31",
   data: {
     colors: {
@@ -43,6 +43,7 @@ if (typeof primstavconfig !== 'undefined') {
 const MILLIS_IN_A_DAY = 24 * 3600 * 1000;
 var labelsDrawn = false;
 
+var monthFormat = d3.time.format("%b");
 var dateFormat = d3.time.format(config.data.dateFormat);
 var tooltipDateFormat = d3.time.format(config.tooltip.dateFormat);
 var tickDateFormat = d3.time.format(config.timeline.dateFormat);
@@ -407,6 +408,18 @@ chart.hide('holidays');
 chart.zoom([originalWindow.left, originalWindow.right]);
 var lastWindow = $.extend(true, {}, originalWindow);
 
+var grids = [{value: new Date(), length: 50, class: 'today', text: ('Today ' + tickDateFormat(today))}];
+mindate = new Date(config.minDate);
+maxdate = new Date(config.maxDate);
+year1 = mindate.getFullYear();
+year2 = maxdate.getFullYear();
+for (var year = year1; year <= year2; year++) {
+  for (var mon = 1; mon < 13; mon++) {
+    firstdateofmonth = new Date(year, mon, 1);
+    grids.push({value: firstdateofmonth, text: monthFormat(firstdateofmonth)})
+  }
+}
+
 chart.xgrids.add(
- {value: new Date(), text: ('Today ' + tickDateFormat(today))}
+ grids
 );
