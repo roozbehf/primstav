@@ -26,6 +26,12 @@ body {
   shape-rendering: crispEdges;
 }
 
+.prim-node-name {
+  color: #ff0;
+  font: 10px sans-serif;
+  /*transform: rotate(90deg);*/
+}
+
 .c3-tooltip td {
   max-width:300px;
 }

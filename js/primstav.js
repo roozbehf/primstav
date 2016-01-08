@@ -41,32 +41,11 @@ if (typeof primstavconfig !== 'undefined') {
 
 // --- Variables and Constants
 const MILLIS_IN_A_DAY = 24 * 3600 * 1000;
+var labelsDrawn = false;
 
 var dateFormat = d3.time.format(config.data.dateFormat);
 var tooltipDateFormat = d3.time.format(config.tooltip.dateFormat);
 var tickDateFormat = d3.time.format(config.timeline.dateFormat);
-
-function updateHolidays(domain) {
-  ratio = (chart.internal.width / zoomKnob) / config.point.holidays.r;
-  lastWindow = {
-    left: domain[0],
-    right: domain[1]
-  };
-  if (holidaysHidden && ratio >= config.point.holidays.showRatio) {
-    chart.show('holidays');
-    chart.zoom(domain);
-    holidaysHidden = false;
-  }
-  if (!holidaysHidden && ratio < config.point.holidays.hideRatio) {
-    chart.hide('holidays');
-    chart.zoom(domain);
-    holidaysHidden = true;
-  }
-}
-
-function dataPointTask(d) {
-  return dataSeries[dateFormat(d.x)][d.value];
-}
 
 // --- get project names
 var projectSet = {};
@@ -122,7 +101,8 @@ for (var i in holidays_x) {
 
 var colData = [];
 var xMap = {};
-var dataSeries = {};
+var dateTasks = {};
+var dataSeries = [];
 
 for (var i in projects) {
   var pname = projects[i];
@@ -140,6 +120,7 @@ var originalWindow = {
 
 for (var i in tasks) {
   var task = tasks[i];
+  task.dueDate = new Date(task.due);
 
   // get the task's project
   pcode = projects.indexOf(task.project);
@@ -160,11 +141,18 @@ for (var i in tasks) {
     datePack[task.due] = value;
   }
 
-  // update the data series of the project tasks
-  if (dataSeries[task.due] == null) {
-    dataSeries[task.due] = [];
+  // update the date tasks
+  if (dateTasks[task.due] == null) {
+    dateTasks[task.due] = [];
   }
-  dataSeries[task.due][value] = task;
+  dateTasks[task.due][value] = task;
+
+  // update the data series
+  if (dataSeries[pcode] == null) {
+    dataSeries[pcode] = [task];
+  } else {
+    dataSeries[pcode].push(task);
+  }
 
   // add the task to the appropriate column
   taskDate = new Date(task.due);
@@ -183,6 +171,11 @@ for (var i in tasks) {
 
 colData[colData.length] = holidays_x;
 colData[colData.length] = holidays;
+
+// sort data series
+for (var i in dataSeries) {
+  dataSeries[i].sort(function srt(a, b) { return a.dueDate.getTime() - b.dueDate.getTime();});
+}
 
 // update view range
 originalWindow.left = new Date(originalWindow.left);
@@ -273,6 +266,21 @@ var chart = c3.generate({
    }
  },
  onresize: function() {updateHolidays([lastWindow.left, lastWindow.right]);},
+ // onrendered: function () {
+ //   if (!labelsDrawn) {
+ //     drawLabels(this.internal);
+ //     labelsDrawn = true;
+ //   } else {
+ //     var $$ = this;
+ //     // remove existing labels
+ //     this.main.selectAll('.' + c3.chart.internal.fn.CLASS.texts).selectAll('*').remove();
+ //
+ //     setTimeout(function () {
+ //         drawLabels($$)
+ //     // add a small duration to make sure the points are in place
+ //     }, this.config.transition_duration + 100)
+ //   }
+ // },
  tooltip: {
    format: {
        value: function (value, ratio, id, index) {
@@ -328,6 +336,66 @@ var chart = c3.generate({
  }
 
  });
+
+// http://stackoverflow.com/questions/31957446/text-inside-each-bubble-in-c3js-scatter-plot
+function drawLabels(chartInternal) {
+  if (chartInternal != undefined) {
+    var textLayers = chartInternal.main.selectAll('.' + c3.chart.internal.fn.CLASS.texts);
+    for (var i = 0; i < textLayers[0].length; i++) {
+        // select each of the scatter points
+        chartInternal.mainCircle[i].forEach(function (point, index) {
+          if (dataSeries[i] != undefined) {
+            task = dataSeries[i][index];
+            if (task != undefined) {
+              var d3point = d3.select(point);
+              cx = d3point.attr('cx');
+              cy = d3point.attr('cy');
+              dx = Number(cx) + 40;
+              d3.select(textLayers[0][i])
+                  .append('text')
+                  // center horizontally and vertically
+                  // .style('text-anchor', 'middle').attr('dy', '.3em')
+                  .text(dataSeries[i][index].name)
+                  .attr('class', 'prim-node-name')
+                  // same as at the point
+                  .attr('x', dx)
+                  .attr('y', cy - 100);
+              d3.select(textLayers[0][i])
+                  .append("line")
+                    .style("stroke", "#999")
+                    .attr("x1", cx)
+                    .attr("y1", cy)
+                    .attr("x2", dx)
+                    .attr("y2", (cy - 100));
+            }
+          }
+        })
+    }
+  }
+}
+
+function updateHolidays(domain) {
+  ratio = (chart.internal.width / zoomKnob) / config.point.holidays.r;
+  lastWindow = {
+    left: domain[0],
+    right: domain[1]
+  };
+  if (holidaysHidden && ratio >= config.point.holidays.showRatio) {
+    chart.show('holidays');
+    chart.zoom(domain);
+    holidaysHidden = false;
+  }
+  if (!holidaysHidden && ratio < config.point.holidays.hideRatio) {
+    chart.hide('holidays');
+    chart.zoom(domain);
+    holidaysHidden = true;
+  }
+}
+
+function dataPointTask(d) {
+  return dateTasks[dateFormat(d.x)][d.value];
+}
+
 
 var holidaysHidden = true;
 chart.hide('holidays');
