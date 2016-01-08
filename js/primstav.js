@@ -102,21 +102,34 @@ for (var i in projects) {
 
 xMap["holidays"] = "holidays_x";
 
+today = new Date();
 var datePack = {};
+var dateWindow = {
+  left: today,
+  right: today
+};
 
 for (var i in tasks) {
   var task = tasks[i];
+
+  // get the task's project
   pcode = projects.indexOf(task.project);
   colindex = pcode * 2;
+
+  // if column data for the project does not exist, crate it
   if (colData[colindex] == null) {
     colData[colindex] = [task.project + "_x"];
     colData[colindex + 1] = [task.project];
   }
+
+  // update the data series of the project tasks
   if (dataSeries[task.project] == null) {
     dataSeries[task.project] = [task];
   } else {
     dataSeries[task.project].push(task);
   }
+
+  // keep track of tasks on the same date, to rais their Y value
   var value = 1;
   if (datePack[task.due] == undefined) {
     datePack[task.due] = 1;
@@ -125,14 +138,31 @@ for (var i in tasks) {
     datePack[task.due] = value;
   }
 
-  colData[colindex].push(new Date(task.due));
+  // add the task to the appropriate column
+  taskDate = new Date(task.due);
+  colData[colindex].push(taskDate);
   colData[colindex + 1].push(value);
+
+  // update the original view window
+  if (taskDate < dateWindow.left) {
+    console.log(taskDate + " is smaller than " + dateWindow.left);
+    dateWindow.left = taskDate;
+  } else {
+    if (taskDate > dateWindow.right) {
+      dateWindow.right = taskDate;
+    }
+  }
 }
 
 colData[colData.length] = holidays_x;
 colData[colData.length] = holidays;
 
-var zoomKnob = 365;
+// update view range
+dateWindow.left = new Date(dateWindow.left);
+dateWindow.left.setDate(dateWindow.left.getDate() - 7);
+dateWindow.right = new Date(dateWindow.right);
+dateWindow.right.setDate(dateWindow.right.getDate() + 7);
+var zoomKnob = Math.round((dateWindow.right.getTime() - dateWindow.left.getTime()) / MILLIS_IN_A_DAY);
 
 // create ticks for all dates
 var tickValues = [];
@@ -280,9 +310,9 @@ var chart = c3.generate({
 
  });
 
-today = new Date();
- chart.xgrids.add(
-   {value: new Date(), text: ('Today ' + tickDateFormat(today))}
- );
+// update initial zoom
+chart.zoom([dateWindow.left, dateWindow.right]);
 
-holidaysHidden = false;
+chart.xgrids.add(
+ {value: new Date(), text: ('Today ' + tickDateFormat(today))}
+);
