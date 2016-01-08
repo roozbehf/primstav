@@ -210,6 +210,9 @@ var chart = c3.generate({
      holidays: 'area',
     }
 },
+legend: {
+  hide: 'holidays'
+},
  axis: {
    x: {
      type: 'timeseries',
@@ -292,7 +295,7 @@ var chart = c3.generate({
      var pos = this.tooltipPosition(data, width, height, element);
      if (dp.id == 'holidays') {
        pos.top = pos.top + 15;
-       pos.left = pos.left - 15;
+       pos.left = pos.left - 20;
      }
      return pos;
   },
