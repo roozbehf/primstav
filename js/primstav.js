@@ -12,7 +12,7 @@ var config_def = {
     colors: {
       holidays: '#f99',
       'Q+': '#00b',
-      'Q+ WM': '#55a',
+      'Q+ WM': '#559',
       'AppInsight': '#0b0',
     },
     dateFormat: "%Y-%m-%d",
@@ -62,6 +62,10 @@ function updateHolidays(domain) {
     chart.zoom(domain);
     holidaysHidden = true;
   }
+}
+
+function dataPointTask(d) {
+  return dataSeries[dateFormat(d.x)][d.value];
 }
 
 // --- get project names
@@ -147,13 +151,6 @@ for (var i in tasks) {
     colData[colindex + 1] = [task.project];
   }
 
-  // update the data series of the project tasks
-  if (dataSeries[task.project] == null) {
-    dataSeries[task.project] = [task];
-  } else {
-    dataSeries[task.project].push(task);
-  }
-
   // keep track of tasks on the same date, to rais their Y value
   var value = 1;
   if (datePack[task.due] == undefined) {
@@ -162,6 +159,12 @@ for (var i in tasks) {
     value = datePack[task.due] + 1;
     datePack[task.due] = value;
   }
+
+  // update the data series of the project tasks
+  if (dataSeries[task.due] == null) {
+    dataSeries[task.due] = [];
+  }
+  dataSeries[task.due][value] = task;
 
   // add the task to the appropriate column
   taskDate = new Date(task.due);
@@ -207,13 +210,13 @@ var chart = c3.generate({
   data: {
     xFormat: config.data.dateFormat,
     xs: xMap,
-     columns: colData,
-     type: 'scatter',
-     colors: config.data.colors,
-     types: {
-       holidays: 'area',
-     }
- },
+    columns: colData,
+    type: 'scatter',
+    colors: config.data.colors,
+    types: {
+     holidays: 'area',
+    }
+},
  axis: {
    x: {
      type: 'timeseries',
@@ -247,7 +250,7 @@ var chart = c3.generate({
        return config.point.holidays.r;
      } else {
        var r = 8;
-       task = dataSeries[d.id][d.index];
+       task = dataPointTask(d);
        if (task.prio != undefined) {
          return r * (1 + (2 - task.prio) / 2);
        } else {
@@ -292,7 +295,7 @@ var chart = c3.generate({
        reason = (dow == 0) ? 'Sun.' : ((dow == 6) ? 'Sat.' : 'Public')
        return "<div id='tooltip' class='c3-tooltip-name'>" + reason + " " + tickDateFormat(dp.x) + "</div>";
      } else {
-         task = dataSeries[dp.id][dp.index];
+         task = dataPointTask(dp);
 
            var $$ = this, config = $$.config,
                titleFormat = config.tooltip_format_title || defaultTitleFormat,
