@@ -1,0 +1,32 @@
+body {
+  font: 10px sans-serif;
+}
+
+.header {
+  font: 30px sans-serif;
+  font-weight: bold;
+  text-align: center;
+}
+
+.subheader {
+  text-align: center;
+  color: #777;
+  font: 20px sans-serif;
+}
+
+.author {
+  text-align: center;
+  color: #999;
+  font: 10px sans-serif;
+}
+
+.axis path, .axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.c3-tooltip th {
+  background-color: #eee;
+  color: #000;
+}
