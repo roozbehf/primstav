@@ -43,6 +43,7 @@ if (typeof primstavconfig !== 'undefined') {
 const MILLIS_IN_A_DAY = 24 * 3600 * 1000;
 var labelsDrawn = false;
 
+var weekdayFormat = d3.time.format("%a");
 var monthFormat = d3.time.format("%b");
 var dateFormat = d3.time.format(config.data.dateFormat);
 var tooltipDateFormat = d3.time.format(config.tooltip.dateFormat);
@@ -221,10 +222,17 @@ legend: {
      tick: {
        values: tickValues,
                format: function(x) {
+                 dow = weekdayFormat(x);
+                //  dow = x.getDay();
+                //  if (dow != 0 && dow != 6) {
+                //    dow = weekdayFormat(x);
+                //  } else {
+                //    dow = "";
+                //  }
                  var date = Math.floor(x.getTime() / MILLIS_IN_A_DAY);
                  var ratio = Math.round(zoomKnob / config.timeline.tickCount);
                  if (date % ratio == 0) {
-                   return tickDateFormat(x);
+                  return tickDateFormat(x) + " " + dow;
                  } else {
                    return "";
                  }
