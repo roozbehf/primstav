@@ -2,7 +2,8 @@ var projects = ['Q+', 'AppInsight'];
 var colors = {
   holidays: '#f99',
   'Q+': '#00b',
-  'AppInsight': '#0b0'
+  'AppInsight': '#0b0',
+  'today': '#ccc'
 };
 
 var minDate = "2016-01-01",
@@ -161,6 +162,12 @@ for (var i in tasks) {
 colData[colData.length] = holidays_x;
 colData[colData.length] = holidays;
 
+// --- add today
+var today = ["today", 10],
+    today_x = ["today_x", new Date()];
+xMap["today"] = "today_x";
+colData[colData.length] = today_x;
+colData[colData.length] = today;
 
 var zoomKnob = 365;
 var tickCounts = 24;
@@ -190,7 +197,8 @@ var chart = c3.generate({
      type: 'scatter',
      colors: colors,
      types: {
-       holidays: 'bar'
+       holidays: 'bar',
+       today: 'bar'
      }
  },
  axis: {
@@ -264,51 +272,54 @@ var chart = c3.generate({
        value: function (value, ratio, id, index) {
          return tasks[index].name;
        }
-//            value: d3.format(',') // apply this format to both y and y2
    },
-  //  position: function (data, width, height, element) {
-  //     var chartOffsetX = document.querySelector("#chart").getBoundingClientRect().left;
-  //     var graphOffsetX = document.querySelector("#chart g.c3-axis-y").getBoundingClientRect().right;
-  //     var tooltipWidth = document.getElementById('tooltip').parentNode.clientWidth;
-  //     var x = (parseInt(element.getAttribute('cx')) ) + graphOffsetX - chartOffsetX - Math.floor(tooltipWidth/2);
-  //     var y = element.getAttribute('cy');
-  //     var y = y - height - 14;
-  //     console.log({top: y, left: x});
-  //     return {top: y, left: x}
-  // },
+   position: function (data, width, height, element) {
+     var dp = data[0];
+     var pos = this.tooltipPosition(data, width, height, element);
+     if (dp.id == 'holidays' || dp.id == 'today') {
+       pos.top = pos.top + 15;
+       pos.left = pos.left - 15;
+     }
+     return pos;
+  },
    contents: function (d, defaultTitleFormat, defaultValueFormat, color) {
      var dp = d[0];
-     if (dp.id != 'holidays') {
-       task = dataSeries[dp.id][dp.index];
-
-         var $$ = this, config = $$.config,
-             titleFormat = config.tooltip_format_title || defaultTitleFormat,
-             nameFormat = config.tooltip_format_name || function (name) { return name; },
-             valueFormat = config.tooltip_format_value || defaultValueFormat,
-             text, i, title, value, name, bgcolor;
-         for (i = 0; i < d.length; i++) {
-             if (! (d[i] && (d[i].value || d[i].value === 0))) { continue; }
-
-             if (! text) {
-                 title = task.name;
-                 text = "<table id='tooltip' class='" + CLASS.tooltip + "'>" + (title || title === 0 ? "<tr><th colspan='2'>" + title + "</th></tr>" : "");
-             }
-
-             name = nameFormat(d[i].name, d[i].ratio, d[i].id, d[i].index);
-             bgcolor = $$.levelColor ? $$.levelColor(d[i].value) : color(d[i].id);
-
-             if (task.dscr != undefined) {
-               text += "<tr class='" + CLASS.tooltipName + "'><td class='name'>" + task.dscr + "</td></tr>";
-             }
-             text += "<tr class='" + CLASS.tooltipName + "-" + d[i].id + "'>";
-             text += "<td class='name'><span style='background-color:" + bgcolor + "'></span>" + name + "</td>";
-             text += "<td class='value'>" + tooltipDateFormat(d[i].x) + "</td>";
-             text += "</tr>";
-         }
-         return text + "</table>";
+     if (dp.id == 'holidays') {
+       return "<div id='tooltip' class='" + CLASS.tooltipName + "'>" + tickDateFormat(dp.x) + "</div>";
      } else {
-       return "<div id='tooltip' class='" + CLASS.tooltipName + "'>" + dateFormat(dp.x) + "</div>";
+       if (dp.id == 'today') {
+         return "<div id='tooltip' class='" + CLASS.tooltipName + "'><b>Today: " + tickDateFormat(dp.x) + "</b></div>";
+       } else {
+         task = dataSeries[dp.id][dp.index];
+
+           var $$ = this, config = $$.config,
+               titleFormat = config.tooltip_format_title || defaultTitleFormat,
+               nameFormat = config.tooltip_format_name || function (name) { return name; },
+               valueFormat = config.tooltip_format_value || defaultValueFormat,
+               text, i, title, value, name, bgcolor;
+           for (i = 0; i < d.length; i++) {
+               if (! (d[i] && (d[i].value || d[i].value === 0))) { continue; }
+
+               if (! text) {
+                   title = task.name;
+                   text = "<table id='tooltip' class='" + CLASS.tooltip + "'>" + (title || title === 0 ? "<tr><th colspan='2'>" + title + "</th></tr>" : "");
+               }
+
+               name = nameFormat(d[i].name, d[i].ratio, d[i].id, d[i].index);
+               bgcolor = $$.levelColor ? $$.levelColor(d[i].value) : color(d[i].id);
+
+               if (task.dscr != undefined) {
+                 text += "<tr class='" + CLASS.tooltipName + "'><td class='name'>" + task.dscr + "</td></tr>";
+               }
+               text += "<tr class='" + CLASS.tooltipName + "-" + d[i].id + "'>";
+               text += "<td class='name'><span style='background-color:" + bgcolor + "'></span>" + name + "</td>";
+               text += "<td class='value'>" + tooltipDateFormat(d[i].x) + "</td>";
+               text += "</tr>";
+           }
+           return text + "</table>";
+       }
      }
+
    }
  }
 
