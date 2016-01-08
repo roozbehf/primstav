@@ -18,11 +18,18 @@ var config_def = {
     dateFormat: "%Y-%m-%d",
   },
   timeline: {
-    dateFormat: "%d.%m",
+    dateFormat: "%d.%m.",
     tickCount: 24
   },
   tooltip: {
     dateFormat: "%d %b %Y"
+  },
+  point: {
+    holidays: {
+      r: 6,
+      showRatio: 1.25,
+      hideRatio: 1
+    }
   }
 }
 
@@ -38,6 +45,24 @@ const MILLIS_IN_A_DAY = 24 * 3600 * 1000;
 var dateFormat = d3.time.format(config.data.dateFormat);
 var tooltipDateFormat = d3.time.format(config.tooltip.dateFormat);
 var tickDateFormat = d3.time.format(config.timeline.dateFormat);
+
+function updateHolidays(domain) {
+  ratio = (chart.internal.width / zoomKnob) / config.point.holidays.r;
+  lastWindow = {
+    left: domain[0],
+    right: domain[1]
+  };
+  if (holidaysHidden && ratio >= config.point.holidays.showRatio) {
+    chart.show('holidays');
+    chart.zoom(domain);
+    holidaysHidden = false;
+  }
+  if (!holidaysHidden && ratio < config.point.holidays.hideRatio) {
+    chart.hide('holidays');
+    chart.zoom(domain);
+    holidaysHidden = true;
+  }
+}
 
 // --- get project names
 var projectSet = {};
@@ -104,7 +129,7 @@ xMap["holidays"] = "holidays_x";
 
 today = new Date();
 var datePack = {};
-var dateWindow = {
+var originalWindow = {
   left: today,
   right: today
 };
@@ -144,12 +169,11 @@ for (var i in tasks) {
   colData[colindex + 1].push(value);
 
   // update the original view window
-  if (taskDate < dateWindow.left) {
-    console.log(taskDate + " is smaller than " + dateWindow.left);
-    dateWindow.left = taskDate;
+  if (taskDate < originalWindow.left) {
+    originalWindow.left = taskDate;
   } else {
-    if (taskDate > dateWindow.right) {
-      dateWindow.right = taskDate;
+    if (taskDate > originalWindow.right) {
+      originalWindow.right = taskDate;
     }
   }
 }
@@ -158,11 +182,11 @@ colData[colData.length] = holidays_x;
 colData[colData.length] = holidays;
 
 // update view range
-dateWindow.left = new Date(dateWindow.left);
-dateWindow.left.setDate(dateWindow.left.getDate() - 7);
-dateWindow.right = new Date(dateWindow.right);
-dateWindow.right.setDate(dateWindow.right.getDate() + 7);
-var zoomKnob = Math.round((dateWindow.right.getTime() - dateWindow.left.getTime()) / MILLIS_IN_A_DAY);
+originalWindow.left = new Date(originalWindow.left);
+originalWindow.left.setDate(originalWindow.left.getDate() - 7);
+originalWindow.right = new Date(originalWindow.right);
+originalWindow.right.setDate(originalWindow.right.getDate() + 7);
+var zoomKnob = Math.round((originalWindow.right.getTime() - originalWindow.left.getTime()) / MILLIS_IN_A_DAY);
 
 // create ticks for all dates
 var tickValues = [];
@@ -220,7 +244,7 @@ var chart = c3.generate({
  point: {
    r: function(d) {
      if (d.id == 'holidays') {
-       return 4;
+       return config.point.holidays.r;
      } else {
        var r = 8;
        task = dataSeries[d.id][d.index];
@@ -242,20 +266,10 @@ var chart = c3.generate({
    extent: [1, 40],
    onzoomend: function (domain) {
      zoomKnob = (domain[1].getTime() - domain[0].getTime()) / MILLIS_IN_A_DAY;
+     updateHolidays(domain);
    }
-  //  onzoomend: function (domain) {
-  //    var diff = domain[1].getTime() - domain[0].getTime();
-  //    if (holidaysHidden && (diff < 30 * MILLIS_IN_A_DAY)) {
-  //      chart.unload('holidays', {withLegend: true});
-  //     //  chart.show('holidays', {withLegend: true});
-  //      holidaysHidden = false;
-  //    }
-  //    if (!holidaysHidden && (diff >= 30 * MILLIS_IN_A_DAY)) {
-  //     //  chart.unload('holidays', {withLegend: true});
-  //     holidaysHidden = true;
-  //    }
-  //  }
  },
+ onresize: function() {updateHolidays([lastWindow.left, lastWindow.right]);},
  tooltip: {
    format: {
        value: function (value, ratio, id, index) {
@@ -274,7 +288,9 @@ var chart = c3.generate({
    contents: function (d, defaultTitleFormat, defaultValueFormat, color) {
      var dp = d[0];
      if (dp.id == 'holidays') {
-       return "<div id='tooltip' class='c3-tooltip-name'>" + tickDateFormat(dp.x) + "</div>";
+       dow = dp.x.getDay();
+       reason = (dow == 0) ? 'Sun.' : ((dow == 6) ? 'Sat.' : 'Public')
+       return "<div id='tooltip' class='c3-tooltip-name'>" + reason + " " + tickDateFormat(dp.x) + "</div>";
      } else {
          task = dataSeries[dp.id][dp.index];
 
@@ -310,8 +326,12 @@ var chart = c3.generate({
 
  });
 
+var holidaysHidden = true;
+chart.hide('holidays');
+
 // update initial zoom
-chart.zoom([dateWindow.left, dateWindow.right]);
+chart.zoom([originalWindow.left, originalWindow.right]);
+var lastWindow = $.extend(true, {}, originalWindow);
 
 chart.xgrids.add(
  {value: new Date(), text: ('Today ' + tickDateFormat(today))}
