@@ -6,6 +6,8 @@
 // --- Primstav Configuration
 var config_def = {
   holidayValue: 0,
+  tasksURL: "data/tasks.json",
+  holidaysURL: "data/holidays.json",
   minDate: "2015-12-28",
   maxDate: "2016-12-31",
   data: {
@@ -33,7 +35,12 @@ var config_def = {
   }
 }
 
-// --- Load custome configuration
+var data = {
+  tasks: [],
+  holidays: []
+};
+
+// --- Import custom configuration
 var config = (JSON.parse(JSON.stringify(config_def)));
 if (typeof primstavconfig !== 'undefined') {
   config = $.extend(true, {}, config, primstavconfig);
@@ -49,305 +56,42 @@ var dateFormat = d3.time.format(config.data.dateFormat);
 var tooltipDateFormat = d3.time.format(config.tooltip.dateFormat);
 var tickDateFormat = d3.time.format(config.timeline.dateFormat);
 
-// --- get project names
-var projectSet = {};
-for (var i in tasks) {
-  projectSet[tasks[i].project] = true;
-}
-var projects = [];
-for (var p in projectSet) {
-  projects.push(p);
-}
-
-// --- combine weekends and holidays
-var offdays = {};
-
-// add public holidays
-for (var i in publicHolidays) {
-  offdays[publicHolidays[i]] = true;
-}
-
-// --- Add Weekends
-var offday = new Date(config.minDate);
-var isWeekend = false;
-do {
-  dow = offday.getDay();
-  if (dow == 6) {
-    break;
-  }
-  if (dow == 0) {
-    offday.setDate(offday.getDate() - 1);
-    break;
-  }
-  offday.setDate(offday.getDate() + 1);
-} while (true);
-
-do {
-  offdays[dateFormat(offday)] = true;
-  offday.setDate(offday.getDate() + 1);
-  offdays[dateFormat(offday)] = true;
-  offday.setDate(offday.getDate() + 6);
-} while (offday.getFullYear() == 2016);
-
-// create column data
-var holidays_x = ["holidays_x"];
-for (var prop in offdays) {
-  holidays_x.push(new Date(prop));
-}
-var holidays = ["holidays"];
-for (var i in holidays_x) {
-  if (i > 0) {
-    holidays[i] = config.holidayValue;
+// --- Load tasks data
+function loadTasks(deferred) {
+  if (config.tasksURL != undefined) {
+      $.getJSON(config.tasksURL, function (dt) {
+        data.tasks = $.extend(true, {}, dt);
+      })
+      .done(function() {
+        console.log("Loaded tasks.");
+      })
+      .fail(function() {
+        console.log("Could not load tasks. Please check the configuration.")
+      })
+      .complete(function() {
+        deferred.resolve();
+      })
   }
 }
 
-var colData = [];
-var xMap = {};
-var dateTasks = {};
-var dataSeries = [];
-
-for (var i in projects) {
-  var pname = projects[i];
-  xMap[pname] = pname + "_x";
-}
-
-xMap["holidays"] = "holidays_x";
-
-today = new Date();
-var datePack = {};
-var originalWindow = {
-  left: today,
-  right: today
-};
-
-for (var i in tasks) {
-  var task = tasks[i];
-  task.dueDate = new Date(task.due);
-
-  // get the task's project
-  pcode = projects.indexOf(task.project);
-  colindex = pcode * 2;
-
-  // if column data for the project does not exist, crate it
-  if (colData[colindex] == null) {
-    colData[colindex] = [task.project + "_x"];
-    colData[colindex + 1] = [task.project];
-  }
-
-  // keep track of tasks on the same date, to rais their Y value
-  var value = 1;
-  if (datePack[task.due] == undefined) {
-    datePack[task.due] = 1;
-  } else {
-    value = datePack[task.due] + 1;
-    datePack[task.due] = value;
-  }
-
-  // update the date tasks
-  if (dateTasks[task.due] == null) {
-    dateTasks[task.due] = [];
-  }
-  dateTasks[task.due][value] = task;
-
-  // update the data series
-  if (dataSeries[pcode] == null) {
-    dataSeries[pcode] = [task];
-  } else {
-    dataSeries[pcode].push(task);
-  }
-
-  // add the task to the appropriate column
-  taskDate = new Date(task.due);
-  colData[colindex].push(taskDate);
-  colData[colindex + 1].push(value);
-
-  // update the original view window
-  if (taskDate < originalWindow.left) {
-    originalWindow.left = taskDate;
-  } else {
-    if (taskDate > originalWindow.right) {
-      originalWindow.right = taskDate;
-    }
+// --- Load holidays
+function loadHolidays(deferred) {
+  if (config.holidaysURL != undefined) {
+      $.getJSON(config.holidaysURL, function (dt) {
+        data.holidays = $.extend(true, {}, dt);
+      })
+      .done(function() {
+        console.log("Loaded holidays.");
+      })
+      .fail(function() {
+        console.log("Could not load holidays. Please check the configuration.")
+      })
+      .complete(function() {
+        deferred.resolve();
+      })
   }
 }
 
-colData[colData.length] = holidays_x;
-colData[colData.length] = holidays;
-
-// sort data series
-for (var i in dataSeries) {
-  dataSeries[i].sort(function srt(a, b) { return a.dueDate.getTime() - b.dueDate.getTime();});
-}
-
-// update view range
-originalWindow.left = new Date(originalWindow.left);
-originalWindow.left.setDate(originalWindow.left.getDate() - 7);
-originalWindow.right = new Date(originalWindow.right);
-originalWindow.right.setDate(originalWindow.right.getDate() + 7);
-var zoomKnob = Math.round((originalWindow.right.getTime() - originalWindow.left.getTime()) / MILLIS_IN_A_DAY);
-
-// create ticks for all dates
-var tickValues = [];
-var adate = new Date(config.minDate);
-var endDate = new Date(config.maxDate);
-do {
-  tickValues.push(new Date(adate));
-  adate.setDate(adate.getDate() + 1);
-} while (adate <= endDate);
-
-var chart = c3.generate({
-  padding: {
-          top: 40,
-          right: 40,
-          bottom: 40,
-          left: 40,
-      },
-  data: {
-    xFormat: config.data.dateFormat,
-    xs: xMap,
-    columns: colData,
-    type: 'scatter',
-    colors: config.data.colors,
-    types: {
-     holidays: 'area',
-    }
-},
-legend: {
-  hide: 'holidays'
-},
- axis: {
-   x: {
-     type: 'timeseries',
-     localtime: true,
-     tick: {
-       values: tickValues,
-               format: function(x) {
-                 dow = weekdayFormat(x);
-                //  dow = x.getDay();
-                //  if (dow != 0 && dow != 6) {
-                //    dow = weekdayFormat(x);
-                //  } else {
-                //    dow = "";
-                //  }
-                 var date = Math.floor(x.getTime() / MILLIS_IN_A_DAY);
-                 var ratio = Math.round(zoomKnob / config.timeline.tickCount);
-                 if (date % ratio == 0) {
-                  return tickDateFormat(x) + " " + dow;
-                 } else {
-                   return "";
-                 }
-               },
-              //  fit: false,
-               rotate: 45,
-               culling: true
-           },
-    min: config.minDate,
-    max: config.maxDate,
-   },
-   y: {
-     show: false,
-     max: 10
-   }
- },
- point: {
-   r: function(d) {
-     if (d.id == 'holidays') {
-       return config.point.holidays.r;
-     } else {
-       var r = 8;
-       task = dataPointTask(d);
-       if (task.prio != undefined) {
-         return r * (1 + (2 - task.prio) / 2);
-       } else {
-         return r;
-       }
-     }
-   }
- },
- bar: {
-   width: {
-     ratio: 1
-   }
- },
- zoom: {
-   enabled: true,
-   extent: [1, 40],
-   onzoomend: function (domain) {
-     zoomKnob = (domain[1].getTime() - domain[0].getTime()) / MILLIS_IN_A_DAY;
-     updateHolidays(domain);
-   }
- },
- onresize: function() {updateHolidays([lastWindow.left, lastWindow.right]);},
- // onrendered: function () {
- //   if (!labelsDrawn) {
- //     drawLabels(this.internal);
- //     labelsDrawn = true;
- //   } else {
- //     var $$ = this;
- //     // remove existing labels
- //     this.main.selectAll('.' + c3.chart.internal.fn.CLASS.texts).selectAll('*').remove();
- //
- //     setTimeout(function () {
- //         drawLabels($$)
- //     // add a small duration to make sure the points are in place
- //     }, this.config.transition_duration + 100)
- //   }
- // },
- tooltip: {
-   format: {
-       value: function (value, ratio, id, index) {
-         return tasks[index].name;
-       }
-   },
-   position: function (data, width, height, element) {
-     var dp = data[0];
-     var pos = this.tooltipPosition(data, width, height, element);
-     if (dp.id == 'holidays') {
-       pos.top = pos.top + 15;
-       pos.left = pos.left - 20;
-     }
-     return pos;
-  },
-   contents: function (d, defaultTitleFormat, defaultValueFormat, color) {
-     var dp = d[0];
-     if (dp.id == 'holidays') {
-       dow = dp.x.getDay();
-       reason = (dow == 0) ? 'Sun.' : ((dow == 6) ? 'Sat.' : 'Public')
-       return "<div id='tooltip' class='c3-tooltip-name'>" + reason + " " + tickDateFormat(dp.x) + "</div>";
-     } else {
-         task = dataPointTask(dp);
-
-           var $$ = this, config = $$.config,
-               titleFormat = config.tooltip_format_title || defaultTitleFormat,
-               nameFormat = config.tooltip_format_name || function (name) { return name; },
-               valueFormat = config.tooltip_format_value || defaultValueFormat,
-               text, i, title, value, name, bgcolor;
-           for (i = 0; i < d.length; i++) {
-               if (! (d[i] && (d[i].value || d[i].value === 0))) { continue; }
-
-               if (! text) {
-                   title = task.name;
-                   text = "<table id='tooltip' class='c3-tooltip'>" + (title || title === 0 ? "<tr><th colspan='2'>" + title + "</th></tr>" : "");
-               }
-
-               name = nameFormat(d[i].name, d[i].ratio, d[i].id, d[i].index);
-               bgcolor = $$.levelColor ? $$.levelColor(d[i].value) : color(d[i].id);
-
-               if (task.dscr != undefined) {
-                 text += "<tr class='c3-tooltip-name'><td class='name'>" + task.dscr + "</td></tr>";
-               }
-               text += "<tr class='c3-tooltip-name-" + d[i].id + "'>";
-               text += "<td class='name'><span style='background-color:" + bgcolor + "'></span>" + name + "</td>";
-               text += "<td class='value'>" + tooltipDateFormat(d[i].x) + "</td>";
-               text += "</tr>";
-           }
-           return text + "</table>";
-     }
-
-   }
- }
-
- });
 
 // http://stackoverflow.com/questions/31957446/text-inside-each-bubble-in-c3js-scatter-plot
 function drawLabels(chartInternal) {
@@ -386,48 +130,379 @@ function drawLabels(chartInternal) {
   }
 }
 
-function updateHolidays(domain) {
-  ratio = (chart.internal.width / zoomKnob) / config.point.holidays.r;
-  lastWindow = {
-    left: domain[0],
-    right: domain[1]
+function drawPrimstav(deferred) {
+
+  function updateHolidays(domain) {
+    ratio = (chart.internal.width / zoomKnob) / config.point.holidays.r;
+    lastWindow = {
+      left: domain[0],
+      right: domain[1]
+    };
+    if (holidaysHidden && ratio >= config.point.holidays.showRatio) {
+      chart.show('holidays');
+      chart.zoom(domain);
+      holidaysHidden = false;
+    }
+    if (!holidaysHidden && ratio < config.point.holidays.hideRatio) {
+      chart.hide('holidays');
+      chart.zoom(domain);
+      holidaysHidden = true;
+    }
+  }
+
+  function dataPointTask(d) {
+    return dateTasks[dateFormat(d.x)][d.value];
+  }
+
+  // --- get project names
+  var projectSet = {};
+  for (var i in data.tasks) {
+    projectSet[data.tasks[i].project] = true;
+  }
+  var projects = [];
+  for (var p in projectSet) {
+    projects.push(p);
+  }
+
+  // --- combine weekends and holidays
+  var offdays = {};
+
+  // add public holidays
+  for (var i in data.holidays) {
+    offdays[data.holidays[i]] = true;
+  }
+
+  // --- Add Weekends
+  var offday = new Date(config.minDate);
+  var isWeekend = false;
+  do {
+    dow = offday.getDay();
+    if (dow == 6) {
+      break;
+    }
+    if (dow == 0) {
+      offday.setDate(offday.getDate() - 1);
+      break;
+    }
+    offday.setDate(offday.getDate() + 1);
+  } while (true);
+
+  do {
+    offdays[dateFormat(offday)] = true;
+    offday.setDate(offday.getDate() + 1);
+    offdays[dateFormat(offday)] = true;
+    offday.setDate(offday.getDate() + 6);
+  } while (offday.getFullYear() == 2016);
+
+  // create column data
+  var holidays_x = ["holidays_x"];
+  for (var prop in offdays) {
+    holidays_x.push(new Date(prop));
+  }
+  var holidays = ["holidays"];
+  for (var i in holidays_x) {
+    if (i > 0) {
+      holidays[i] = config.holidayValue;
+    }
+  }
+
+  var colData = [];
+  var xMap = {};
+  var dateTasks = {};
+  var dataSeries = [];
+
+  for (var i in projects) {
+    var pname = projects[i];
+    xMap[pname] = pname + "_x";
+  }
+
+  xMap["holidays"] = "holidays_x";
+
+  today = new Date();
+  var datePack = {};
+  var originalWindow = {
+    left: today,
+    right: today
   };
-  if (holidaysHidden && ratio >= config.point.holidays.showRatio) {
-    chart.show('holidays');
-    chart.zoom(domain);
-    holidaysHidden = false;
+
+  for (var i in data.tasks) {
+    var task = data.tasks[i];
+    task.dueDate = new Date(task.due);
+
+    // get the task's project
+    pcode = projects.indexOf(task.project);
+    colindex = pcode * 2;
+
+    // if column data for the project does not exist, crate it
+    if (colData[colindex] == null) {
+      colData[colindex] = [task.project + "_x"];
+      colData[colindex + 1] = [task.project];
+    }
+
+    // keep track of tasks on the same date, to rais their Y value
+    var value = 1;
+    if (datePack[task.due] == undefined) {
+      datePack[task.due] = 1;
+    } else {
+      value = datePack[task.due] + 1;
+      datePack[task.due] = value;
+    }
+
+    // update the date tasks
+    if (dateTasks[task.due] == null) {
+      dateTasks[task.due] = [];
+    }
+    dateTasks[task.due][value] = task;
+
+    // update the data series
+    if (dataSeries[pcode] == null) {
+      dataSeries[pcode] = [task];
+    } else {
+      dataSeries[pcode].push(task);
+    }
+
+    // add the task to the appropriate column
+    taskDate = new Date(task.due);
+    colData[colindex].push(taskDate);
+    colData[colindex + 1].push(value);
+
+    // update the original view window
+    if (taskDate < originalWindow.left) {
+      originalWindow.left = taskDate;
+    } else {
+      if (taskDate > originalWindow.right) {
+        originalWindow.right = taskDate;
+      }
+    }
   }
-  if (!holidaysHidden && ratio < config.point.holidays.hideRatio) {
-    chart.hide('holidays');
-    chart.zoom(domain);
-    holidaysHidden = true;
+
+  colData[colData.length] = holidays_x;
+  colData[colData.length] = holidays;
+
+  // sort data series
+  for (var i in dataSeries) {
+    dataSeries[i].sort(function srt(a, b) { return a.dueDate.getTime() - b.dueDate.getTime();});
   }
+
+  // update view range
+  originalWindow.left = new Date(originalWindow.left);
+  originalWindow.left.setDate(originalWindow.left.getDate() - 7);
+  originalWindow.right = new Date(originalWindow.right);
+  originalWindow.right.setDate(originalWindow.right.getDate() + 7);
+  var zoomKnob = Math.round((originalWindow.right.getTime() - originalWindow.left.getTime()) / MILLIS_IN_A_DAY);
+
+  // create ticks for all dates
+  var tickValues = [];
+  var adate = new Date(config.minDate);
+  var endDate = new Date(config.maxDate);
+  do {
+    tickValues.push(new Date(adate));
+    adate.setDate(adate.getDate() + 1);
+  } while (adate <= endDate);
+
+  var chart = c3.generate({
+    padding: {
+            top: 40,
+            right: 40,
+            bottom: 40,
+            left: 40,
+        },
+    data: {
+      xFormat: config.data.dateFormat,
+      xs: xMap,
+      columns: colData,
+      type: 'scatter',
+      colors: config.data.colors,
+      types: {
+       holidays: 'area',
+      }
+  },
+  legend: {
+    hide: 'holidays'
+  },
+   axis: {
+     x: {
+       type: 'timeseries',
+       localtime: true,
+       tick: {
+         values: tickValues,
+                 format: function(x) {
+                   dow = weekdayFormat(x);
+                  //  dow = x.getDay();
+                  //  if (dow != 0 && dow != 6) {
+                  //    dow = weekdayFormat(x);
+                  //  } else {
+                  //    dow = "";
+                  //  }
+                   var date = Math.floor(x.getTime() / MILLIS_IN_A_DAY);
+                   var ratio = Math.round(zoomKnob / config.timeline.tickCount);
+                   if (date % ratio == 0) {
+                    return tickDateFormat(x) + " " + dow;
+                   } else {
+                     return "";
+                   }
+                 },
+                //  fit: false,
+                 rotate: 45,
+                 culling: true
+             },
+      min: config.minDate,
+      max: config.maxDate,
+     },
+     y: {
+       show: false,
+       max: 10
+     }
+   },
+   point: {
+     r: function(d) {
+       if (d.id == 'holidays') {
+         return config.point.holidays.r;
+       } else {
+         var r = 8;
+         task = dataPointTask(d);
+         if (task.prio != undefined) {
+           return r * (1 + (2 - task.prio) / 2);
+         } else {
+           return r;
+         }
+       }
+     }
+   },
+   bar: {
+     width: {
+       ratio: 1
+     }
+   },
+   zoom: {
+     enabled: true,
+     extent: [1, 40],
+     onzoomend: function (domain) {
+       zoomKnob = (domain[1].getTime() - domain[0].getTime()) / MILLIS_IN_A_DAY;
+       updateHolidays(domain);
+     }
+   },
+   onresize: function() {updateHolidays([lastWindow.left, lastWindow.right]);},
+   // onrendered: function () {
+   //   if (!labelsDrawn) {
+   //     drawLabels(this.internal);
+   //     labelsDrawn = true;
+   //   } else {
+   //     var $$ = this;
+   //     // remove existing labels
+   //     this.main.selectAll('.' + c3.chart.internal.fn.CLASS.texts).selectAll('*').remove();
+   //
+   //     setTimeout(function () {
+   //         drawLabels($$)
+   //     // add a small duration to make sure the points are in place
+   //     }, this.config.transition_duration + 100)
+   //   }
+   // },
+   tooltip: {
+     format: {
+         value: function (value, ratio, id, index) {
+           return data.tasks[index].name;
+         }
+     },
+     position: function (data, width, height, element) {
+       var dp = data[0];
+       var pos = this.tooltipPosition(data, width, height, element);
+       if (dp.id == 'holidays') {
+         pos.top = pos.top + 15;
+         pos.left = pos.left - 20;
+       }
+       return pos;
+    },
+     contents: function (d, defaultTitleFormat, defaultValueFormat, color) {
+       var dp = d[0];
+       if (dp.id == 'holidays') {
+         dow = dp.x.getDay();
+         reason = (dow == 0) ? 'Sun.' : ((dow == 6) ? 'Sat.' : 'Public')
+         return "<div id='tooltip' class='c3-tooltip-name'>" + reason + " " + tickDateFormat(dp.x) + "</div>";
+       } else {
+           task = dataPointTask(dp);
+
+             var $$ = this, config = $$.config,
+                 titleFormat = config.tooltip_format_title || defaultTitleFormat,
+                 nameFormat = config.tooltip_format_name || function (name) { return name; },
+                 valueFormat = config.tooltip_format_value || defaultValueFormat,
+                 text, i, title, value, name, bgcolor;
+             for (i = 0; i < d.length; i++) {
+                 if (! (d[i] && (d[i].value || d[i].value === 0))) { continue; }
+
+                 if (! text) {
+                     title = task.name;
+                     text = "<table id='tooltip' class='c3-tooltip'>" + (title || title === 0 ? "<tr><th colspan='2'>" + title + "</th></tr>" : "");
+                 }
+
+                 name = nameFormat(d[i].name, d[i].ratio, d[i].id, d[i].index);
+                 bgcolor = $$.levelColor ? $$.levelColor(d[i].value) : color(d[i].id);
+
+                 if (task.dscr != undefined) {
+                   text += "<tr class='c3-tooltip-name'><td class='name'>" + task.dscr + "</td></tr>";
+                 }
+                 text += "<tr class='c3-tooltip-name-" + d[i].id + "'>";
+                 text += "<td class='name'><span style='background-color:" + bgcolor + "'></span>" + name + "</td>";
+                 text += "<td class='value'>" + tooltipDateFormat(d[i].x) + "</td>";
+                 text += "</tr>";
+             }
+             return text + "</table>";
+       }
+
+     }
+   }
+
+   });
+
+  var holidaysHidden = true;
+  chart.hide('holidays');
+
+  // update initial zoom
+  chart.zoom([originalWindow.left, originalWindow.right]);
+  var lastWindow = $.extend(true, {}, originalWindow);
+
+  var grids = [{value: new Date(), length: 50, class: 'today', text: ('Today ' + tickDateFormat(today))}];
+  mindate = new Date(config.minDate);
+  maxdate = new Date(config.maxDate);
+  year1 = mindate.getFullYear();
+  year2 = maxdate.getFullYear();
+  for (var year = year1; year <= year2; year++) {
+    for (var mon = 1; mon < 13; mon++) {
+      firstdateofmonth = new Date(year, mon, 1);
+      grids.push({value: firstdateofmonth, text: monthFormat(firstdateofmonth)})
+    }
+  }
+
+  chart.xgrids.add(
+   grids
+  );
+
+  deferred.resolve();
 }
 
-function dataPointTask(d) {
-  return dateTasks[dateFormat(d.x)][d.value];
+// -- Load data
+var loadData = function() {
+  var defTasks = new $.Deferred();
+  loadTasks(defTasks);
+
+  var defH = new $.Deferred();
+  loadHolidays(defH);
+
+  defTasks.then(defH);
+
+  return defH;
 }
 
-
-var holidaysHidden = true;
-chart.hide('holidays');
-
-// update initial zoom
-chart.zoom([originalWindow.left, originalWindow.right]);
-var lastWindow = $.extend(true, {}, originalWindow);
-
-var grids = [{value: new Date(), length: 50, class: 'today', text: ('Today ' + tickDateFormat(today))}];
-mindate = new Date(config.minDate);
-maxdate = new Date(config.maxDate);
-year1 = mindate.getFullYear();
-year2 = maxdate.getFullYear();
-for (var year = year1; year <= year2; year++) {
-  for (var mon = 1; mon < 13; mon++) {
-    firstdateofmonth = new Date(year, mon, 1);
-    grids.push({value: firstdateofmonth, text: monthFormat(firstdateofmonth)})
-  }
+var drawVisuals = function() {
+  console.log("Drawing the board...");
+  var deferred = new $.Deferred();
+  drawPrimstav(deferred);
+  console.log("Drawing the board done.");
+  return deferred;
 }
 
-chart.xgrids.add(
- grids
-);
+loadData().then(drawVisuals).done(function() {console.log("All done.")});
+
+// $.when(loadData(), drawVisuals()).done(function() {
+//   console.log("happy?")
+// });

@@ -1,0 +1,27 @@
+[
+
+{
+  "name": "task 1",
+  "due": "2016-01-30",
+  "dscr": "Just so",
+  "prio": 3,
+  "project": "Project 1"
+},
+{
+  "name": "task 2",
+  "due": "2016-02-15",
+  "project": "Project 2"
+},
+{
+  "name": "task 4",
+  "due": "2016-02-15",
+  "prio": 1,
+  "project": "Project 2"
+},
+{
+  "name": "task 3",
+  "due": "2016-02-18",
+  "project": "Project 1"
+}
+
+]
