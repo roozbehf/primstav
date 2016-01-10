@@ -13,7 +13,7 @@ var config_def = {
   data: {
     colors: {
       holidays: '#f99',
-      away: '#444',
+      away: '#777',
       'Q+': '#00b',
       'Q+ WM': '#559',
       'AppInsight': '#0b0'
@@ -29,9 +29,9 @@ var config_def = {
   },
   holidays: {
     point: {
-      r: 6,
-      showRatio: 1.25,
-      hideRatio: 1
+      r: 2,
+      showRatio: 18,
+      hideRatio: 16
     },
     value: 0.5
   },
@@ -116,6 +116,24 @@ function loadAwayTimes(deferred) {
   )
 }
 
+function startTimePeriod(date, targetArray) {
+  var update = new Date(date);
+  update.setHours(0);
+  targetArray.push(update);
+  var thedate = new Date(date);
+  thedate.setHours(1);
+  targetArray.push(thedate);
+}
+
+function endTimePeriod(date, targetArray) {
+  var thedate = new Date(date);
+  thedate.setHours(22);
+  targetArray.push(thedate);
+  var downdate = new Date(date);
+  downdate.setHours(23);
+  targetArray.push(downdate);
+}
+
 
 // http://stackoverflow.com/questions/31957446/text-inside-each-bubble-in-c3js-scatter-plot
 function drawLabels(chartInternal) {
@@ -157,7 +175,7 @@ function drawLabels(chartInternal) {
 function drawPrimstav(deferred) {
 
   function updateHolidays(domain) {
-    ratio = (chart.internal.width / zoomKnob) / config.holidays.point.r;
+    ratio = (chart.internal.width / zoomKnob);
     lastWindow = {
       left: domain[0],
       right: domain[1]
@@ -169,6 +187,7 @@ function drawPrimstav(deferred) {
     }
     if (!holidaysHidden && ratio < config.holidays.point.hideRatio) {
       chart.hide('holidays');
+      console.log("hiding them!")
       chart.zoom(domain);
       holidaysHidden = true;
     }
@@ -196,7 +215,6 @@ function drawPrimstav(deferred) {
     offdays[data.holidays[i]] = true;
   }
 
-  // --- Add Weekends
   var offday = new Date(config.minDate);
   var isWeekend = false;
   do {
@@ -218,15 +236,37 @@ function drawPrimstav(deferred) {
     offday.setDate(offday.getDate() + 6);
   } while (offday.getFullYear() == 2016);
 
-  // create column data
-  var holidays_x = ["holidays_x"];
+  offdates = [];
   for (var prop in offdays) {
-    holidays_x.push(new Date(prop));
+    offdates.push(new Date(prop));
   }
+  offdates.sort(function (a, b) { return a.getTime() - b.getTime();});
+
+  var holidays_x = ["holidays_x"];
+  for (var i in offdates) {
+    if (i == 0) {
+      startTimePeriod(offdates[i], holidays_x);
+    } else {
+      if (i == offdates.length - 1) {
+        endTimePeriod(offdates[i], holidays_x);
+      } else {
+        var prevdate = offdates[i - 1];
+        if (offdates[i].getTime() - prevdate.getTime() > MILLIS_IN_A_DAY) {
+          endTimePeriod(prevdate, holidays_x);
+          startTimePeriod(offdates[i], holidays_x);
+        }
+      }
+    }
+  }
+
   var holidays = ["holidays"];
   for (var i in holidays_x) {
     if (i > 0) {
-      holidays[i] = config.holidays.value;
+      if (holidays_x[i].getHours() % 23 == 0) {
+        holidays[i] = 0;
+      } else {
+        holidays[i] = config.holidays.value;
+      }
     }
   }
 
@@ -287,6 +327,7 @@ function drawPrimstav(deferred) {
 
     // add the task to the appropriate column
     taskDate = new Date(task.due);
+    taskDate.setHours(12);
     colData[colindex].push(taskDate);
     colData[colindex + 1].push(value);
 
@@ -308,18 +349,20 @@ function drawPrimstav(deferred) {
   aways = ['away'];
   for (var i in data.away) {
     a = data.away[i];
-    date = new Date(a.from);
-    date.setHours(0);
-    aways_x.push(date);
-    date = new Date(a.from);
-    date.setHours(1);
-    aways_x.push(date);
-    date = new Date(a.to);
-    date.setHours(22);
-    aways_x.push(date);
-    date = new Date(a.to);
-    date.setHours(23);
-    aways_x.push(date);
+    startTimePeriod(a.from, aways_x);
+    endTimePeriod(a.to, aways_x);
+    // date = new Date(a.from);
+    // date.setHours(0);
+    // aways_x.push(date);
+    // date = new Date(a.from);
+    // date.setHours(1);
+    // aways_x.push(date);
+    // date = new Date(a.to);
+    // date.setHours(22);
+    // aways_x.push(date);
+    // date = new Date(a.to);
+    // date.setHours(23);
+    // aways_x.push(date);
   }
   for (var i in aways_x) {
     if (i > 0) {
@@ -351,6 +394,7 @@ function drawPrimstav(deferred) {
   // create ticks for all dates
   var tickValues = [];
   var adate = new Date(config.minDate);
+  adate.setHours(12);
   var endDate = new Date(config.maxDate);
   do {
     tickValues.push(new Date(adate));
@@ -383,26 +427,20 @@ function drawPrimstav(deferred) {
        type: 'timeseries',
        tick: {
          values: tickValues,
-                 format: function(x) {
-                   dow = weekdayFormat(x);
-                  //  dow = x.getDay();
-                  //  if (dow != 0 && dow != 6) {
-                  //    dow = weekdayFormat(x);
-                  //  } else {
-                  //    dow = "";
-                  //  }
-                   var date = Math.floor(x.getTime() / MILLIS_IN_A_DAY);
-                   var ratio = Math.round(zoomKnob / config.timeline.tickCount);
-                   if (date % ratio == 0) {
-                    return tickDateFormat(x) + " " + dow;
-                   } else {
-                     return "";
-                   }
-                 },
-                //  fit: false,
-                 rotate: 45,
-                 culling: true
-             },
+         format: function(x) {
+           dow = weekdayFormat(x);
+           var date = Math.floor(x.getTime() / MILLIS_IN_A_DAY);
+           var ratio = Math.round(zoomKnob / config.timeline.tickCount);
+           if (date % ratio == 0) {
+            return tickDateFormat(x) + " " + dow;
+           } else {
+             return "";
+           }
+         },
+        //  fit: false,
+         rotate: 45,
+         culling: true
+      },
       min: config.minDate,
       max: config.maxDate,
      },
