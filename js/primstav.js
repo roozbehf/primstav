@@ -5,15 +5,15 @@
 
 // --- Primstav Configuration
 var config_def = {
-  tasksURL: "data/tasks.json",
+  tasksURL: "data/worktasks.json",
   holidaysURL: "data/holidays.json",
-  awayURL: "data/away.json",
+  awayURL: "data/workaway.json",
   minDate: "2015-12-28",
   maxDate: "2016-12-31",
   data: {
     colors: {
       holidays: '#f99',
-      away: '#777',
+      away: '#59f',
       'Q+': '#00b',
       'Q+ WM': '#559',
       'AppInsight': '#0b0'
@@ -30,10 +30,10 @@ var config_def = {
   holidays: {
     point: {
       r: 2,
-      showRatio: 18,
-      hideRatio: 16
+      showRatio: 16,
+      hideRatio: 14
     },
-    value: 0.5
+    value: 0.25
   },
   away: {
     point: {
@@ -347,22 +347,13 @@ function drawPrimstav(deferred) {
   // --- put together away data
   aways_x = ['away_x'];
   aways = ['away'];
+  var awayObjs = [];
   for (var i in data.away) {
     a = data.away[i];
     startTimePeriod(a.from, aways_x);
+    awayObjs.push(a); awayObjs.push(a);
     endTimePeriod(a.to, aways_x);
-    // date = new Date(a.from);
-    // date.setHours(0);
-    // aways_x.push(date);
-    // date = new Date(a.from);
-    // date.setHours(1);
-    // aways_x.push(date);
-    // date = new Date(a.to);
-    // date.setHours(22);
-    // aways_x.push(date);
-    // date = new Date(a.to);
-    // date.setHours(23);
-    // aways_x.push(date);
+    awayObjs.push(a); awayObjs.push(a);
   }
   for (var i in aways_x) {
     if (i > 0) {
@@ -506,7 +497,7 @@ function drawPrimstav(deferred) {
      position: function (data, width, height, element) {
        var dp = data[0];
        var pos = this.tooltipPosition(data, width, height, element);
-       if (dp.id == 'holidays') {
+       if (dp.id == 'holidays' || dp.id == 'away') {
          pos.top = pos.top + 15;
          pos.left = pos.left - 20;
        }
@@ -517,11 +508,11 @@ function drawPrimstav(deferred) {
        if (dp.id == 'holidays') {
          dow = dp.x.getDay();
          reason = (dow == 0) ? 'Sun.' : ((dow == 6) ? 'Sat.' : 'Public')
-         return "<div id='tooltip' class='c3-tooltip-name'>" + reason + " " + tickDateFormat(dp.x) + "</div>";
+         return "<div id='tooltip' class='prim-tooltip-holiday'>" + reason + " " + tickDateFormat(dp.x) + "</div>";
        } else {
          if (dp.id == 'away') {
-           dow = dp.x.getDay();
-           return "<div id='tooltip' class='c3-tooltip-name'>" + tickDateFormat(dp.x) + "</div>";
+           awayobj = awayObjs[dp.index];
+           return "<div id='tooltip' class='prim-tooltip-away'>" + awayobj.name + "</div>";
          } else {
            task = dataPointTask(dp);
 
@@ -545,8 +536,8 @@ function drawPrimstav(deferred) {
                    text += "<tr class='c3-tooltip-name'><td class='name'>" + task.dscr + "</td></tr>";
                  }
                  text += "<tr class='c3-tooltip-name-" + d[i].id + "'>";
-                 text += "<td class='name'><span style='background-color:" + bgcolor + "'></span>" + name + "</td>";
                  text += "<td class='value'>" + tooltipDateFormat(d[i].x) + "</td>";
+                 text += "<td class='name'><span style='background-color:" + bgcolor + "'></span>" + name + "</td>";
                  text += "</tr>";
              }
              return text + "</table>";

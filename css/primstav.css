@@ -32,6 +32,18 @@ body {
   /*transform: rotate(90deg);*/
 }
 
+.prim-tooltip-away {
+  color: #555;
+  font: 11px sans-serif;
+  font-weight: bold;
+}
+
+.prim-tooltip-holiday {
+  color: #555;
+  font: 11px sans-serif;
+  font-weight: bold;
+}
+
 .c3-tooltip td {
   max-width:300px;
 }
