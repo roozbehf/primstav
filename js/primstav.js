@@ -5,17 +5,18 @@
 
 // --- Primstav Configuration
 var config_def = {
-  holidayValue: 0,
   tasksURL: "data/tasks.json",
   holidaysURL: "data/holidays.json",
+  awayURL: "data/away.json",
   minDate: "2015-12-28",
   maxDate: "2016-12-31",
   data: {
     colors: {
       holidays: '#f99',
+      away: '#444',
       'Q+': '#00b',
       'Q+ WM': '#559',
-      'AppInsight': '#0b0',
+      'AppInsight': '#0b0'
     },
     dateFormat: "%Y-%m-%d",
   },
@@ -26,18 +27,26 @@ var config_def = {
   tooltip: {
     dateFormat: "%d %b %Y"
   },
-  point: {
-    holidays: {
+  holidays: {
+    point: {
       r: 6,
       showRatio: 1.25,
       hideRatio: 1
-    }
+    },
+    value: 0.5
+  },
+  away: {
+    point: {
+      r: 2
+    },
+    value: 0.5
   }
 }
 
 var data = {
   tasks: [],
-  holidays: []
+  holidays: [],
+  away: []
 };
 
 // --- Import custom configuration
@@ -56,40 +65,55 @@ var dateFormat = d3.time.format(config.data.dateFormat);
 var tooltipDateFormat = d3.time.format(config.tooltip.dateFormat);
 var tickDateFormat = d3.time.format(config.timeline.dateFormat);
 
+function loadJSON(deferred, url, loadfunc, doneMsg, failMsg) {
+  if (url != undefined) {
+      $.getJSON(url, loadfunc)
+        .done(function() {
+          console.log(doneMsg);
+        })
+        .fail(function() {
+          console.log(failMsg)
+        })
+        .complete(function() {
+          deferred.resolve();
+        })
+  }
+}
+
 // --- Load tasks data
 function loadTasks(deferred) {
-  if (config.tasksURL != undefined) {
-      $.getJSON(config.tasksURL, function (dt) {
-        data.tasks = $.extend(true, {}, dt);
-      })
-      .done(function() {
-        console.log("Loaded tasks.");
-      })
-      .fail(function() {
-        console.log("Could not load tasks. Please check the configuration.")
-      })
-      .complete(function() {
-        deferred.resolve();
-      })
-  }
+  loadJSON(deferred,
+    config.tasksURL,
+    function (dt) {
+      data.tasks = $.extend(true, {}, dt);
+    },
+    "Loaded tasks.",
+    "Could not load tasks. Please check the configuration."
+  )
 }
 
 // --- Load holidays
 function loadHolidays(deferred) {
-  if (config.holidaysURL != undefined) {
-      $.getJSON(config.holidaysURL, function (dt) {
-        data.holidays = $.extend(true, {}, dt);
-      })
-      .done(function() {
-        console.log("Loaded holidays.");
-      })
-      .fail(function() {
-        console.log("Could not load holidays. Please check the configuration.")
-      })
-      .complete(function() {
-        deferred.resolve();
-      })
-  }
+  loadJSON(deferred,
+    config.holidaysURL,
+    function (dt) {
+      data.holidays = $.extend(true, {}, dt);
+    },
+    "Loaded holidays.",
+    "Could not load holidays. Please check the configuration."
+  )
+}
+
+// --- Load away times
+function loadAwayTimes(deferred) {
+  loadJSON(deferred,
+    config.awayURL,
+    function (dt) {
+      data.away = $.extend(true, {}, dt);
+    },
+    "Loaded away times.",
+    "Could not load away time data. Please check the configuration."
+  )
 }
 
 
@@ -133,17 +157,17 @@ function drawLabels(chartInternal) {
 function drawPrimstav(deferred) {
 
   function updateHolidays(domain) {
-    ratio = (chart.internal.width / zoomKnob) / config.point.holidays.r;
+    ratio = (chart.internal.width / zoomKnob) / config.holidays.point.r;
     lastWindow = {
       left: domain[0],
       right: domain[1]
     };
-    if (holidaysHidden && ratio >= config.point.holidays.showRatio) {
+    if (holidaysHidden && ratio >= config.holidays.point.showRatio) {
       chart.show('holidays');
       chart.zoom(domain);
       holidaysHidden = false;
     }
-    if (!holidaysHidden && ratio < config.point.holidays.hideRatio) {
+    if (!holidaysHidden && ratio < config.holidays.point.hideRatio) {
       chart.hide('holidays');
       chart.zoom(domain);
       holidaysHidden = true;
@@ -202,7 +226,7 @@ function drawPrimstav(deferred) {
   var holidays = ["holidays"];
   for (var i in holidays_x) {
     if (i > 0) {
-      holidays[i] = config.holidayValue;
+      holidays[i] = config.holidays.value;
     }
   }
 
@@ -279,6 +303,39 @@ function drawPrimstav(deferred) {
   colData[colData.length] = holidays_x;
   colData[colData.length] = holidays;
 
+  // --- put together away data
+  aways_x = ['away_x'];
+  aways = ['away'];
+  for (var i in data.away) {
+    a = data.away[i];
+    date = new Date(a.from);
+    date.setHours(0);
+    aways_x.push(date);
+    date = new Date(a.from);
+    date.setHours(1);
+    aways_x.push(date);
+    date = new Date(a.to);
+    date.setHours(22);
+    aways_x.push(date);
+    date = new Date(a.to);
+    date.setHours(23);
+    aways_x.push(date);
+  }
+  for (var i in aways_x) {
+    if (i > 0) {
+      if (aways_x[i].getHours() % 23 == 0) {
+        aways[i] = 0;
+      } else {
+        aways[i] = config.away.value;
+      }
+    }
+  }
+  colData[colData.length] = aways_x;
+  colData[colData.length] = aways;
+  xMap["away"] = "away_x";
+  console.log(aways);
+  console.log(aways_x);
+
   // sort data series
   for (var i in dataSeries) {
     dataSeries[i].sort(function srt(a, b) { return a.dueDate.getTime() - b.dueDate.getTime();});
@@ -315,15 +372,15 @@ function drawPrimstav(deferred) {
       colors: config.data.colors,
       types: {
        holidays: 'area',
+       away: 'area'
       }
   },
   legend: {
-    hide: 'holidays'
+    hide: ['holidays', 'away']
   },
    axis: {
      x: {
        type: 'timeseries',
-       localtime: true,
        tick: {
          values: tickValues,
                  format: function(x) {
@@ -357,14 +414,18 @@ function drawPrimstav(deferred) {
    point: {
      r: function(d) {
        if (d.id == 'holidays') {
-         return config.point.holidays.r;
+         return config.holidays.point.r;
        } else {
-         var r = 8;
-         task = dataPointTask(d);
-         if (task.prio != undefined) {
-           return r * (1 + (2 - task.prio) / 2);
+         if (d.id == 'away') {
+           return config.away.point.r;
          } else {
-           return r;
+           var r = 8;
+           task = dataPointTask(d);
+           if (task.prio != undefined) {
+             return r * (1 + (2 - task.prio) / 2);
+           } else {
+             return r;
+           }
          }
        }
      }
@@ -420,6 +481,10 @@ function drawPrimstav(deferred) {
          reason = (dow == 0) ? 'Sun.' : ((dow == 6) ? 'Sat.' : 'Public')
          return "<div id='tooltip' class='c3-tooltip-name'>" + reason + " " + tickDateFormat(dp.x) + "</div>";
        } else {
+         if (dp.id == 'away') {
+           dow = dp.x.getDay();
+           return "<div id='tooltip' class='c3-tooltip-name'>" + tickDateFormat(dp.x) + "</div>";
+         } else {
            task = dataPointTask(dp);
 
              var $$ = this, config = $$.config,
@@ -447,6 +512,7 @@ function drawPrimstav(deferred) {
                  text += "</tr>";
              }
              return text + "</table>";
+         }
        }
 
      }
@@ -488,9 +554,12 @@ var loadData = function() {
   var defH = new $.Deferred();
   loadHolidays(defH);
 
-  defTasks.then(defH);
+  var defAway = new $.Deferred();
+  loadAwayTimes(defAway);
 
-  return defH;
+  defTasks.then(defH).then(defAway);
+
+  return defAway;
 }
 
 var drawVisuals = function() {
