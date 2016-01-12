@@ -5,9 +5,9 @@
 
 // --- Primstav Configuration
 var config_def = {
-  tasksURL: "data/worktasks.json",
+  tasksURL: "data/tasks.json",
   holidaysURL: "data/holidays.json",
-  awayURL: "data/workaway.json",
+  awayURL: "data/away.json",
   minDate: "2015-12-28",
   maxDate: "2016-12-31",
   data: {

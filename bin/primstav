@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
 
-http-server .
+path=$1
+
+if [ -z "$path" ]
+then
+  path=..
+fi
+
+http-server "$path"
 
