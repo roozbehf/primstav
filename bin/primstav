@@ -7,5 +7,7 @@ then
   path=..
 fi
 
-http-server "$path"
+http-server "$path" > /var/log/primstav 2>&1 &
+
+echo "Log file: /var/log/primstav"
 
