@@ -13,7 +13,8 @@ var config_def = {
   data: {
     colors: {
       holidays: '#f99',
-      away: '#59f',
+      // away: '#59f',
+      away: '#777',
       'Q+': '#00b',
       'Q+ WM': '#559',
       'AppInsight': '#0b0'
