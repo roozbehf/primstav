@@ -10,9 +10,10 @@ var data = {
 };
 
 // --- Import custom configuration
-var config = (JSON.parse(JSON.stringify(config_def)));
-if (typeof primstavconfig !== 'undefined') {
-  config = $.extend(true, {}, config, primstavconfig);
+var config = angular.copy(config_def);
+browserconfigstr = Cookies.get('primstav.config');
+if (browserconfigstr != undefined) {
+  config = $.extend(true, {}, config, JSON.parse(browserconfigstr));
 }
 
 // --- Variables and Constants
