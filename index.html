@@ -4,26 +4,87 @@
 
   Copyright (c) 2016 Roozbeh Farahbod
 -->
+<html lang="eng">
 
+<head>
+<title>Primstav</title>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <!-- load stylesheets -->
 <link href="css/c3.min.css" rel="stylesheet" type="text/css">
 <link href="css/primstav.css" rel="stylesheet" type="text/css" >
 
+<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+
+<!-- jQuery library -->
+<!-- <script src="lib/jquery-1.11.3.min.js" charset="utf-8"></script> -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+<!-- Latest compiled JavaScript -->
+<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+<script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.min.js"></script>
+
 <!-- load d3.js and c3.js -->
-<script src="lib/jquery-1.11.3.min.js" charset="utf-8"></script>
 <script src="lib/d3.v3.min.js" charset="utf-8"></script>
 <script src="lib/c3.min.js"></script>
+<script src="lib/js.cookie-2.1.0.min.js"></script>
+</head>
 
 <body>
+  <div class="container-fluid">
+
 <div class='header'>Primstav</div>
 <div class='subheader'>Calendar on a Stick</div>
 <div class='author'>Copyright (c) 2016 Roozbeh Farahbod</div>
 
+
+<div dir="rtl"><a href="#confWindow" data-toggle="modal"><span class="glyphicon glyphicon-cog"></span></a></div>
+
 <div id="chart"></div>
 
+<script src="js/config.js"></script>
 <script src="js/primstav.js"></script>
+
+</div>
+
+<!-- Modal -->
+<div id="confWindow" class="modal fade" ="-1" role="dialog">
+  <div class="modal-dialog">
+
+    <!-- Modal content-->
+    <div class="modal-content">
+      <div ng-app="pconfig" ng-controller="configFormCtrl">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Basic Configuration</h4>
+      </div>
+
+      <div class="modal-body">
+
+          <form role="form">
+            <div class="form-group">
+                <textarea type="text" class="form-control" id="config" rows="10" ng-model="userconfigstr"></textarea>
+            </div>
+          </form>
+
+      </div>
+
+      <div class="modal-footer">
+          <button type="button" class="btn btn-default"
+                  data-dismiss="modal">
+                      Close
+          </button>
+          <button type="button" class="btn btn-primary" ng-click="saveConfig()">
+              Save changes
+          </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
 
 </body>
 </html>
