@@ -1,13 +1,24 @@
 #!/usr/bin/env bash
 
 path=$1
+rootdir=`dirname $0`/..
 
 if [ -z "$path" ]
 then
-  path=..
+  path=$rootdir
 fi
 
-http-server "$path" > /var/log/primstav 2>&1 &
+logdir=$path/log
 
-echo "Log file: /var/log/primstav"
+if [ ! -e "$logdir" ]
+then
+  mkdir -p "$logdir"
+fi
 
+logfile="$logdir"/primstav.log
+
+http-server "$path" > "$logfile" 2>&1 &
+pid=$!
+
+echo "HTTP server is running with pid $pid."
+echo "Log file: $logfile"
